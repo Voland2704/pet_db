@@ -2,7 +2,7 @@
 
 **Tech Trends Analyzer** — это полноценный аналитический пайплайн и REST API для сбора, очистки и анализа рынка IT-вакансий. Проект демонстрирует полный цикл разработки современного Python-приложения: от асинхронного сбора данных и их обработки до упаковки в Docker и настройки CI/CD.
 
-![CI Pipeline](https://github.com/<ТВОЙ_НИК>/pet_db/actions/workflows/ci.yml/badge.svg)
+![CI Pipeline](https://github.com/Voland2704/pet_db/actions/workflows/ci.yml/badge.svg)
 ![Python 3.13](https://img.shields.io/badge/Python-3.13-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
 ![Ruff](https://img.shields.io/badge/Ruff-005571?style=flat&logo=ruff)

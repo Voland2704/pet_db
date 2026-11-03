@@ -1,9 +1,7 @@
-from typing import Any
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, delete
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from main import Base, Skill, Vacancy, app, get_db, vacancy_skills
@@ -13,7 +11,7 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 test_engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool
+    poolclass=StaticPool,
 )
 
 # 2. Создаем сессию и таблицы
@@ -21,9 +19,9 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 Base.metadata.create_all(bind=test_engine)
 
 # 3. Функция-подмена для зависимости get_db
-def override_get_db():
+def override_get_db() -> Session:
+    db = TestingSessionLocal()
     try:
-        db = TestingSessionLocal()
         yield db
     finally:
         db.close()
@@ -49,7 +47,7 @@ def seed_and_clean_test_data():
             company_name="Test Corp",
             job_type="full-time",
             location="Remote",
-            salary_avg=5000.0
+            salary_avg=5000.0,
         )
         vacancy.skills.append(skill)
         db.add(vacancy)

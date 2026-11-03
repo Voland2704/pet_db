@@ -23,6 +23,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
+
 # --- Pydantic Схемы ---
 class SkillResponse(BaseModel):
     id: int

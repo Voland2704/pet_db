@@ -2,15 +2,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool # <--- ВАЖНЫЙ ИМПОРТ
 
-# Импортируем всё необходимое, включая связующую таблицу
 from main import app, get_db, Base, Vacancy, Skill, vacancy_skills
 
-# 1. Создаем движок для БД в оперативной памяти
+# 1. Создаем движок для БД в оперативной памяти с StaticPool
+# StaticPool гарантирует, что все запросы будут использовать одно и то же соединение,
+# поэтому база данных :memory: не будет уничтожаться между запросами.
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 test_engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, 
-    connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool # <--- МАГИЧЕСКОЕ ИСПРАВЛЕНИЕ
 )
 
 # 2. Создаем сессию и таблицы
@@ -39,7 +42,7 @@ def seed_and_clean_test_data():
     with TestingSessionLocal() as db:
         skill = Skill(name="python")
         db.add(skill)
-        db.flush() # Получаем ID навыка
+        db.flush() 
         
         vacancy = Vacancy(
             remote_id=999,
@@ -57,9 +60,7 @@ def seed_and_clean_test_data():
     
     # TEARDOWN: Очищаем таблицы в ПРАВИЛЬНОМ порядке!
     with TestingSessionLocal() as db:
-        # 1. Сначала удаляем связи многие-ко-многим
         db.execute(delete(vacancy_skills))
-        # 2. Затем удаляем сами записи вакансий и навыков
         db.query(Vacancy).delete()
         db.query(Skill).delete()
         db.commit()

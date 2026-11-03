@@ -1,8 +1,5 @@
 import json
 
-import pytest
-
-
 def test_save_to_file_logic(tmp_path):
     """Тест проверяет, что функция корректно создает файл и записывает JSON."""
     test_jobs = [{"id": 1, "title": "Python Dev"}]

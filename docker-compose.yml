@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # Сервис с нашим FastAPI приложением
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # В реальном проекте это будет строка подключения к сервису db ниже
+      - DATABASE_URL=sqlite:///./tech_trends.db 
+      # Для PostgreSQL строка выглядела бы так:
+      # - DATABASE_URL=postgresql+psycopg2://user:password@db:5432/tech_trends
+    depends_on:
+      - db # Ждем запуска базы данных (если бы использовали PostgreSQL)
+    restart: unless-stopped
+
+  # Сервис базы данных (для демонстрации структуры, сейчас используется SQLite в API)
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=tech_trends
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:

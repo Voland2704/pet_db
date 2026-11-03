@@ -1,10 +1,27 @@
 from datetime import datetime
-from typing import Any
 
 from fastapi import Depends, FastAPI, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table, create_engine, desc, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    create_engine,
+    desc,
+    func,
+)
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    Session,
+    mapped_column,
+    relationship,
+    sessionmaker,
+)
 
 # --- Pydantic Схемы ---
 class SkillResponse(BaseModel):
@@ -36,19 +53,22 @@ class Base(DeclarativeBase):
     pass
 
 vacancy_skills = Table(
-    'vacancy_skills', Base.metadata,
-    Column('vacancy_id', Integer, ForeignKey('vacancies.id'), primary_key=True),
-    Column('skill_id', Integer, ForeignKey('skills.id'), primary_key=True)
+    "vacancy_skills",
+    Base.metadata,
+    Column("vacancy_id", Integer, ForeignKey("vacancies.id"), primary_key=True),
+    Column("skill_id", Integer, ForeignKey("skills.id"), primary_key=True),
 )
 
 class Skill(Base):
-    __tablename__ = 'skills'
+    __tablename__ = "skills"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    vacancies: Mapped[list["Vacancy"]] = relationship(secondary=vacancy_skills, back_populates="skills")
+    vacancies: Mapped[list["Vacancy"]] = relationship(
+        secondary=vacancy_skills, back_populates="skills"
+    )
 
 class Vacancy(Base):
-    __tablename__ = 'vacancies'
+    __tablename__ = "vacancies"
     id: Mapped[int] = mapped_column(primary_key=True)
     remote_id: Mapped[int] = mapped_column(unique=True, index=True)
     title: Mapped[str] = mapped_column(String(255))
@@ -60,13 +80,14 @@ class Vacancy(Base):
     salary_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
     publication_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     description_clean: Mapped[str | None] = mapped_column(String, nullable=True)
-    skills: Mapped[list["Skill"]] = relationship(secondary=vacancy_skills, back_populates="vacancies", lazy="selectin")
+    skills: Mapped[list["Skill"]] = relationship(
+        secondary=vacancy_skills, back_populates="vacancies", lazy="selectin"
+    )
 
 DATABASE_URL = "sqlite:////content/tech_trends.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 def get_db():
-    # Импортируем sessionmaker здесь, чтобы избежать конфликтов имен
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal()
     try:
@@ -84,7 +105,7 @@ def get_vacancies(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     skill_filter: str | None = Query(None),
-    db: Any = Depends(get_db)  # noqa: B008 (FastAPI требует Depends в аргументах)
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> list[VacancyResponse]:
     query = db.query(Vacancy)
     if skill_filter:
@@ -94,15 +115,16 @@ def get_vacancies(
 @app.get("/api/v1/stats/top-skills", response_model=list[SkillStatResponse])
 def get_top_skills(
     limit: int = Query(10, ge=1, le=50),
-    db: Any = Depends(get_db)  # noqa: B008 (FastAPI требует Depends в аргументах)
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> list[SkillStatResponse]:
-    return db.query(
-        Skill.name.label('skill_name'),
-        func.count(vacancy_skills.c.vacancy_id).label('vacancy_count')
-    ).join(
-        vacancy_skills, Skill.id == vacancy_skills.c.skill_id
-    ).group_by(
-        Skill.name
-    ).order_by(
-        desc('vacancy_count')
-    ).limit(limit).all()
+    return (
+        db.query(
+            Skill.name.label("skill_name"),
+            func.count(vacancy_skills.c.vacancy_id).label("vacancy_count"),
+        )
+        .join(vacancy_skills, Skill.id == vacancy_skills.c.skill_id)
+        .group_by(Skill.name)
+        .order_by(desc("vacancy_count"))
+        .limit(limit)
+        .all()
+    )

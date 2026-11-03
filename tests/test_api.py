@@ -1,19 +1,19 @@
+from typing import Any
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool # <--- ВАЖНЫЙ ИМПОРТ
+from sqlalchemy.pool import StaticPool
 
-from main import app, get_db, Base, Vacancy, Skill, vacancy_skills
+from main import Base, Skill, Vacancy, app, get_db, vacancy_skills
 
 # 1. Создаем движок для БД в оперативной памяти с StaticPool
-# StaticPool гарантирует, что все запросы будут использовать одно и то же соединение,
-# поэтому база данных :memory: не будет уничтожаться между запросами.
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 test_engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool # <--- МАГИЧЕСКОЕ ИСПРАВЛЕНИЕ
+    poolclass=StaticPool
 )
 
 # 2. Создаем сессию и таблицы
@@ -38,11 +38,10 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def seed_and_clean_test_data():
     """Добавляет тестовые данные перед тестом и корректно удаляет их после."""
-    # SETUP: Добавляем данные
     with TestingSessionLocal() as db:
         skill = Skill(name="python")
         db.add(skill)
-        db.flush() 
+        db.flush()
         
         vacancy = Vacancy(
             remote_id=999,
@@ -56,7 +55,7 @@ def seed_and_clean_test_data():
         db.add(vacancy)
         db.commit()
     
-    yield # Здесь выполняется сам тест
+    yield
     
     # TEARDOWN: Очищаем таблицы в ПРАВИЛЬНОМ порядке!
     with TestingSessionLocal() as db:

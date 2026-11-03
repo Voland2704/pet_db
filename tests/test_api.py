@@ -1,9 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import sessionmaker
 
-from main import app, get_db, Base, Vacancy, Skill
+# Импортируем всё необходимое, включая связующую таблицу
+from main import app, get_db, Base, Vacancy, Skill, vacancy_skills
 
 # 1. Создаем движок для БД в оперативной памяти
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -12,7 +13,7 @@ test_engine = create_engine(
     connect_args={"check_same_thread": False}
 )
 
-# 2. Создаем сессию и таблицы в этой временной БД
+# 2. Создаем сессию и таблицы
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 Base.metadata.create_all(bind=test_engine)
 
@@ -33,7 +34,7 @@ client = TestClient(app)
 # --- Фикстура для добавления И ОЧИСТКИ тестовых данных ---
 @pytest.fixture(autouse=True)
 def seed_and_clean_test_data():
-    """Добавляет тестовые данные перед тестом и удаляет их после."""
+    """Добавляет тестовые данные перед тестом и корректно удаляет их после."""
     # SETUP: Добавляем данные
     with TestingSessionLocal() as db:
         skill = Skill(name="python")
@@ -54,8 +55,11 @@ def seed_and_clean_test_data():
     
     yield # Здесь выполняется сам тест
     
-    # TEARDOWN: Очищаем таблицы после теста, чтобы следующий тест начал с чистого листа
+    # TEARDOWN: Очищаем таблицы в ПРАВИЛЬНОМ порядке!
     with TestingSessionLocal() as db:
+        # 1. Сначала удаляем связи многие-ко-многим
+        db.execute(delete(vacancy_skills))
+        # 2. Затем удаляем сами записи вакансий и навыков
         db.query(Vacancy).delete()
         db.query(Skill).delete()
         db.commit()

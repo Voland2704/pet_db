@@ -3,10 +3,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Импортируем наше приложение и модели из main.py
 from main import app, get_db, Base, Vacancy, Skill
 
-# 1. Создаем движок для БД в оперативной памяти (работает везде!)
+# 1. Создаем движок для БД в оперативной памяти
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 test_engine = create_engine(
     SQLALCHEMY_DATABASE_URL, 
@@ -31,17 +30,16 @@ app.dependency_overrides[get_db] = override_get_db
 # 5. Инициализируем тестовый клиент
 client = TestClient(app)
 
-# --- Фикстура для добавления тестовых данных перед каждым тестом ---
+# --- Фикстура для добавления И ОЧИСТКИ тестовых данных ---
 @pytest.fixture(autouse=True)
-def seed_test_data():
-    """Добавляет тестовые данные в БД в памяти перед каждым тестом."""
+def seed_and_clean_test_data():
+    """Добавляет тестовые данные перед тестом и удаляет их после."""
+    # SETUP: Добавляем данные
     with TestingSessionLocal() as db:
-        # Создаем навык
         skill = Skill(name="python")
         db.add(skill)
         db.flush() # Получаем ID навыка
         
-        # Создаем вакансию
         vacancy = Vacancy(
             remote_id=999,
             title="Test Python Developer",
@@ -53,9 +51,14 @@ def seed_test_data():
         vacancy.skills.append(skill)
         db.add(vacancy)
         db.commit()
-    yield
-    # После теста можно очистить БД, но для in-memory это не обязательно, 
-    # так как она пересоздается при каждом запуске pytest.
+    
+    yield # Здесь выполняется сам тест
+    
+    # TEARDOWN: Очищаем таблицы после теста, чтобы следующий тест начал с чистого листа
+    with TestingSessionLocal() as db:
+        db.query(Vacancy).delete()
+        db.query(Skill).delete()
+        db.commit()
 
 # --- Сами тесты ---
 def test_health_check():
@@ -69,7 +72,7 @@ def test_get_vacancies_structure():
     data = response.json()
     
     assert isinstance(data, list)
-    assert len(data) >= 1 # Теперь там точно есть наша тестовая вакансия
+    assert len(data) >= 1
     
     vacancy = data[0]
     assert "id" in vacancy
